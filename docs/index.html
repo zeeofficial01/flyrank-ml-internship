@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlyRank Search Content Opportunity Scoring</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  line-height: 1.7;
+  color: #1f2937;
+  background: #f5f7fb;
+}
+
+.container {
+  max-width: 1050px;
+  margin: 0 auto;
+  padding: 40px 24px 70px;
+}
+
+.hero {
+  background: #111827;
+  color: white;
+  padding: 55px 45px;
+  border-radius: 18px;
+  margin-bottom: 28px;
+}
+
+.hero .label {
+  font-size: 13px;
+  font-weight: bold;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+h1 {
+  font-size: 42px;
+  line-height: 1.15;
+  margin: 12px 0 18px;
+}
+
+.hero p {
+  font-size: 18px;
+  max-width: 820px;
+  opacity: 0.9;
+}
+
+.card {
+  background: white;
+  padding: 32px;
+  border-radius: 16px;
+  margin: 24px 0;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.05);
+}
+
+h2 {
+  font-size: 27px;
+  margin-top: 0;
+  color: #111827;
+}
+
+h3 {
+  color: #374151;
+  margin-top: 25px;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+  margin: 22px 0;
+}
+
+.stat {
+  background: #f3f4f6;
+  padding: 18px;
+  border-radius: 12px;
+}
+
+.stat strong {
+  display: block;
+  font-size: 26px;
+  color: #111827;
+}
+
+.stat span {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+}
+
+th, td {
+  padding: 12px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+}
+
+th {
+  background: #f3f4f6;
+}
+
+.note {
+  border-left: 4px solid #6b7280;
+  background: #f9fafb;
+  padding: 15px 18px;
+  margin: 20px 0;
+}
+
+a {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.footer {
+  text-align: center;
+  color: #6b7280;
+  padding-top: 30px;
+  font-size: 14px;
+}
+
+code {
+  background: #f3f4f6;
+  padding: 2px 6px;
+  border-radius: 5px;
+}
+
+@media (max-width: 650px) {
+  .container { padding: 20px 14px 45px; }
+  .hero { padding: 35px 24px; }
+  h1 { font-size: 32px; }
+  .card { padding: 23px; }
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<section class="hero">
+  <div class="label">FlyRank ML Internship · Week 8 Capstone</div>
+  <h1>FlyRank Search Content Opportunity Scoring</h1>
+  <p>
+    Can observed search-performance signals be used to rank pages by
+    content-review opportunity?
+  </p>
+</section>
+
+<section class="card">
+<h2>Abstract</h2>
+
+<p>
+This capstone asks whether observed search-performance signals can be used
+to rank pages by content-review opportunity. Using an anonymized FlyRank
+starter dataset, the analysis constructs a transparent prototype opportunity
+label based on recent impression decline and evaluates a Logistic Regression
+model against a majority-class baseline. On the held-out test set, the
+Logistic Regression model achieved 0.453 precision, 0.663 recall, 0.538 F1,
+0.671 ROC-AUC, and 0.467 PR-AUC, while the majority baseline identified no
+opportunities. The model was then used to generate a ranked review queue
+with opportunity scores and human-readable reason codes. These results are
+prototype decision-support evidence and do not establish causal effects,
+reveal Google's ranking algorithm, or guarantee that changing a recommended
+page will improve performance.
+</p>
+</section>
+
+<section class="card">
+<h2>Introduction / Problem Statement</h2>
+
+<p>
+Content teams need a repeatable way to decide which pages should be reviewed
+first when search performance changes. Reviewing every page equally is
+inefficient, while relying on a single metric can miss pages that show
+multiple signals of potential opportunity.
+</p>
+
+<p>
+This project asks whether observed search-performance signals can be combined
+into a transparent ranking of pages by content-review opportunity. The
+intended decision is to help a content team prioritize pages for review,
+monitoring, or further investigation.
+</p>
+
+<p>
+The output is a ranked review queue with an opportunity score, supporting
+reason codes, and an action category. This is decision-support evidence
+rather than a claim about Google's ranking algorithm or a guarantee that
+editing a page will improve its future performance.
+</p>
+</section>
+
+<section class="card">
+<h2>Decision Supported</h2>
+
+<p><strong>Which pages should a content team review first?</strong></p>
+
+<p>
+The system produces a ranked list that can help prioritize pages for content
+review, monitoring, or further investigation.
+</p>
+
+<div class="note">
+<strong>Cost of a wrong call:</strong>
+False positives can waste review time, while false negatives can cause
+potentially declining pages to be missed.
+</div>
+</section>
+
+<section class="card">
+<h2>Data</h2>
+
+<div class="stat-grid">
+  <div class="stat">
+    <strong>30,000</strong>
+    <span>Rows</span>
+  </div>
+
+  <div class="stat">
+    <strong>44</strong>
+    <span>Columns</span>
+  </div>
+
+  <div class="stat">
+    <strong>90d</strong>
+    <span>Aggregate window</span>
+  </div>
+
+  <div class="stat">
+    <strong>30d</strong>
+    <span>Recent comparison window</span>
+  </div>
+</div>
+
+<h3>Dataset</h3>
+
+<p>
+The capstone uses the public FlyRank starter dataset
+<code>content_refresh_anonymized.csv</code>. The dataset contains anonymized
+content identifiers and observed search-performance, content, freshness,
+engagement, and trend fields.
+</p>
+
+<h3>Time Windows</h3>
+
+<p>
+The dataset provides 90-day aggregate performance fields, last-30-day
+performance fields, and previous-30-day performance fields. The starter CSV
+does not expose a specific calendar release date in the inspected fields, so
+this analysis does not claim a specific calendar-period release.
+</p>
+
+<h3>Public-Safe Handling</h3>
+
+<p>
+The analysis uses anonymized content IDs and aggregate fields. Client
+identifiers are not used as predictive features, and the public analysis does
+not expose client names, domains, private queries, credentials, or raw
+private exports.
+</p>
+</section>
+
+<section class="card">
+<h2>Methodology</h2>
+
+<h3>Opportunity Definition</h3>
+
+<p>
+A prototype <code>review_opportunity</code> label was constructed from the
+recent change in impressions. Among pages with prior-period impressions, the
+median decline among declining pages was used as the threshold.
+</p>
+
+<div class="stat-grid">
+  <div class="stat">
+    <strong>-36.84%</strong>
+    <span>Decline threshold</span>
+  </div>
+
+  <div class="stat">
+    <strong>9,858</strong>
+    <span>Opportunity pages</span>
+  </div>
+
+  <div class="stat">
+    <strong>32.84%</strong>
+    <span>Opportunity rate</span>
+  </div>
+</div>
+
+<h3>Features</h3>
+
+<p>
+The model uses observed content, search, freshness, engagement, and
+performance-related signals including search volume, competition, word count,
+content age, days since update, CTR, average position, engagement rate,
+scroll rate, AI traffic percentage, content type, intent, age tier,
+freshness tier, word-count tier, character-count tier, impression tier, and
+position tier.
+</p>
+
+<h3>Leakage Checks</h3>
+
+<p>
+Fields that directly constructed the opportunity label were excluded from the
+model, including <code>impressions_last_30d</code>,
+<code>impressions_prev_30d</code>, and
+<code>recent_impression_change_pct</code>. The closely related
+<code>trend_direction</code> and <code>trend_pct</code> fields were also
+excluded.
+</p>
+
+<h3>Validation</h3>
+
+<p>
+The data was split using an 80/20 stratified train/test split, producing
+24,000 training rows and 6,000 test rows. The training and test opportunity
+rates were approximately 32.9%.
+</p>
+
+<p>
+The model was compared with a majority-class baseline. Numeric features used
+median imputation and standardization, while categorical features used
+most-frequent imputation and one-hot encoding. The main model was Logistic
+Regression with class balancing.
+</p>
+</section>
+
+<section class="card">
+<h2>Results</h2>
+
+<table>
+<thead>
+<tr>
+  <th>Model</th>
+  <th>Accuracy</th>
+  <th>Precision</th>
+  <th>Recall</th>
+  <th>F1</th>
+  <th>ROC-AUC</th>
+  <th>PR-AUC</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+  <td>Majority baseline</td>
+  <td>0.671</td>
+  <td>0.000</td>
+  <td>0.000</td>
+  <td>0.000</td>
+  <td>N/A</td>
+  <td>N/A</td>
+</tr>
+
+<tr>
+  <td>Logistic Regression</td>
+  <td>0.626</td>
+  <td>0.453</td>
+  <td>0.663</td>
+  <td>0.538</td>
+  <td>0.671</td>
+  <td>0.467</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+On the held-out test set, Logistic Regression identified a substantial share
+of the defined opportunity class, with recall of 0.663 and precision of
+0.453. Its ROC-AUC was 0.671 and PR-AUC was 0.467.
+</p>
+
+<div class="note">
+The majority baseline achieved higher accuracy because it always selected the
+majority class, but it identified no opportunity pages. Accuracy therefore
+does not provide a sufficient summary of this imbalanced decision problem.
+</div>
+
+<h3>Feature Interpretation</h3>
+
+<p>
+The strongest positive coefficients included content type, selected
+word-count tiers, lower/moderate impression tiers, selected position tiers,
+scroll rate, and days since last update. Strong negative coefficients
+included the top-three position tier, excellent impression tier, and selected
+content and age categories.
+</p>
+
+<p>
+These coefficients describe associations in the fitted model. They should not
+be interpreted as causal effects.
+</p>
+</section>
+
+<section class="card">
+<h2>Ranked Recommendations</h2>
+
+<p>
+The fitted model produces an opportunity score for each page. The resulting
+queue is accompanied by human-readable reason codes and action categories.
+</p>
+
+<table>
+<thead>
+<tr>
+  <th>Rank</th>
+  <th>Action</th>
+  <th>Purpose</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+  <td>1–50</td>
+  <td><strong>Priority review</strong></td>
+  <td>Initial review queue</td>
+</tr>
+
+<tr>
+  <td>51–200</td>
+  <td><strong>Review queue</strong></td>
+  <td>Secondary review after the first group</td>
+</tr>
+
+<tr>
+  <td>201–1,000</td>
+  <td><strong>Monitor</strong></td>
+  <td>Gather additional evidence</td>
+</tr>
+
+<tr>
+  <td>1,001+</td>
+  <td><strong>Lower priority</strong></td>
+  <td>Remain lower in the review queue unless other evidence changes priority</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+Example reason codes include recent impression decline, lower CTR, lower
+impression volume, weaker average position, lack of recent updates, and
+established content.
+</p>
+
+<div class="note">
+These rankings are prioritization aids, not automatic content-editing
+instructions. A human reviewer should consider page context, search intent,
+content quality, business importance, and other evidence before taking
+action.
+</div>
+</section>
+
+<section class="card">
+<h2>Limitations and Honest Framing</h2>
+
+<p>
+This analysis uses the anonymized starter dataset because the full FlyRank
+Warehouse Dataset was not yet available during development. The results
+should therefore be treated as prototype evidence rather than final
+warehouse findings.
+</p>
+
+<p>
+The <code>review_opportunity</code> label is a constructed analytical
+definition based on recent impression decline. It is not a directly observed
+business outcome and should not be interpreted as proof that a page requires
+a content refresh.
+</p>
+
+<p>
+The Logistic Regression model identifies associations within the available
+data. The coefficients do not establish that the corresponding signals cause
+search-performance changes.
+</p>
+
+<p>
+The model does not reveal or predict Google's ranking algorithm. It also
+cannot guarantee that editing a recommended page will improve its search
+performance.
+</p>
+
+<p>
+Finally, the ranking should be used as decision support. A human reviewer
+should consider the page context, search intent, content quality, business
+importance, and other evidence before taking action.
+</p>
+
+<h3>Temporal Limitation</h3>
+
+<p>
+The prototype opportunity label is based on the recent 30-day change in
+impressions, while several available features are aggregated over 90 days.
+These windows therefore overlap. Direct target fields were excluded from the
+model, but the remaining 90-day aggregates can still contain information
+from the target period. For this reason, the model should be interpreted as
+a cross-sectional ranking prototype rather than a clean future-decline
+forecasting model.
+</p>
+</section>
+
+<section class="card">
+<h2>Reproducibility</h2>
+
+<p>
+The analysis was developed in Python using Pandas, NumPy, DuckDB, Matplotlib,
+and scikit-learn.
+</p>
+
+<p>
+The complete capstone notebook and supporting work are maintained in the
+public GitHub repository:
+</p>
+
+<p>
+<a href="https://github.com/zeeofficial01/flyrank-ml-internship">
+View the FlyRank ML Internship GitHub repository
+</a>
+</p>
+
+<p>
+The capstone notebook contains data loading, feature preparation, target
+construction, train/test splitting, baseline comparison, Logistic Regression,
+evaluation metrics, feature interpretation, opportunity scoring, reason
+codes, ranking, and visualizations.
+</p>
+
+<p>
+<a href="https://github.com/zeeofficial01/flyrank-ml-internship/blob/main/work/notebooks/w08_capstone_search_opportunity.ipynb">
+View the Week 8 Capstone Notebook
+</a>
+</p>
+</section>
+
+<section class="card">
+<h2>Acknowledgments and Data Credit</h2>
+
+<p>
+Built on the FlyRank ML Internship dataset.
+</p>
+
+<p>
+<a href="https://flyrank.ai">FlyRank</a>
+</p>
+</section>
+
+<div class="footer">
+  FlyRank ML Internship · Search Content Opportunity Scoring · Prototype Research Paper
+</div>
+
+</div>
+
+</body>
+</html>
